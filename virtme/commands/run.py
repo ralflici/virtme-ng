@@ -850,11 +850,14 @@ class VirtioFS:
         # which causes authentication failures (e.g., unix_chkpwd cannot obtain
         # user info).
         acl_opt = "--posix-acl " if posix_acl else ""
-        os.system(
+        cmd = (
             f"{virtiofsd_path} --syslog --no-announce-submounts {acl_opt}"
             + f"--socket-path {self.sock} --shared-dir {path} "
             + f"--sandbox none -o cache={cache} {stderr} &"
         )
+        if verbose:
+            sys.stderr.write(f"virtme-run: starting virtiofsd: {cmd}\n")
+        os.system(cmd)
         max_attempts = 5
         check_duration = 0.1
         for _ in range(max_attempts):
@@ -1568,10 +1571,9 @@ def do_it() -> int:
             path=args.root,
             mount_tag="ROOTFS",
             rw=args.rw,
-            # Only enable POSIX ACLs when using an external root filesystem.
-            # When sharing the host root (/), --posix-acl breaks UID/GID
-            # translation which causes authentication failures.
-            posix_acl=(args.root != "/"),
+            # Temporary experiment: match the v1.22 root export more closely
+            # while debugging old-kernel virtiofs root failures.
+            posix_acl=False,
         )
         use_virtiofs = export_virtiofs(
             virt_arch,
